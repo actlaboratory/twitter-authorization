@@ -32,13 +32,12 @@ if token:
 	auth.set_access_token(*token)
 	twitterApi = tweepy.API(auth)
 
-	user = twitterApi.get_user(screen_name="yamahubuki")
-	print(user.screen_name)
+	user = twitterApi.get_user(screen_name="act_laboratory")
 	friendsCount = user.friends_count
 	print(friendsCount)
 	cursor=-1
 	try:
-		friends = tweepy.Cursor(twitterApi.friends,screen_name="yamahubuki",include_user_entities=False,skip_status=True,count=2).items()
+		friends = tweepy.Cursor(twitterApi.friends,screen_name="yamahubuki",include_user_entities=False,skip_status=True,count=200).items()
 		for friend in friends:
 			print(friend.screen_name)
 	except tweepy.error.RateLimitError:
