@@ -32,6 +32,7 @@ class TwitterAuthorization:
 		self.key = consumerKey
 		self.secret = consumerSecret
 		self.port = receivePort
+		self.localServer = None
 
 		#generate request URL
 		self.tweepy = tweepy.OAuthHandler(self.key, self.secret,"http://localhost:%d" % self.port)
