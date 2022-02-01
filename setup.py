@@ -47,5 +47,5 @@ setup(
     description='Twitter OAuth1.0 Helper for desktop Apps',
     long_description=long_description,
 
-    install_requires=('tweepy'),
+    install_requires=('tweepy<4'),
 )
