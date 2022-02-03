@@ -25,10 +25,10 @@ http.server.HTTPServer.server_bind = server_bind
 class TwitterAuthorization:
 	def __init__(self, consumerKey, consumerSecret, receivePort):
 		"""
-				Args:
-						consumerKey (string): The consumerKey from Twitter developper portal
-						consumerSecret (string): The consumerSecret from Twitter developper portal
-						receivedPort (string): The port number to receive request
+						Args:
+										consumerKey (string): The consumerKey from Twitter developper portal
+										consumerSecret (string): The consumerSecret from Twitter developper portal
+										receivedPort (string): The port number to receive request
 		"""
 		self.result = None
 
@@ -38,11 +38,11 @@ class TwitterAuthorization:
 		self.localServer = None
 
 		# generate request URL
-		self.tweepy = tweepy.OAuthHandler(self.key, self.secret, "http://localhost:%d" % self.port)
+		self.tweepy = tweepy.OAuth1UserHandler(self.key, self.secret, "http://localhost:%d" % self.port)
 
 		try:
 			self.url = self.tweepy.get_authorization_url()
-		except tweepy.TweepError as e:
+		except (tweepy.TweepyException, tweepy.HTTPException) as e:
 			raise Exception(e)
 
 		# start local web server
@@ -57,31 +57,31 @@ class TwitterAuthorization:
 
 	def setMessage(self, lang, success, failed, transfer):
 		"""
-				Set Message that viewd in browser
-				Args:
-						lang (string): The message language code (ex:ja,en,...)
-						success (string): The success message
-						failed (string): The failed message
-						transfer (string): The transfer error message that appear in old or Javascript disabled browser
+						Set Message that viewd in browser
+						Args:
+										lang (string): The message language code (ex:ja,en,...)
+										success (string): The success message
+										failed (string): The failed message
+										transfer (string): The transfer error message that appear in old or Javascript disabled browser
 		"""
 		self.wsgi_app.setMessage(lang, success, failed, transfer)
 
 	def getUrl(self):
 		"""
-				Get Authorization url
-				Returns:
-						AuthorizationUrl (string)
+						Get Authorization url
+						Returns:
+										AuthorizationUrl (string)
 
 		"""
 		return self.url
 
 	def getToken(self):
 		"""
-				Get accesstoken (success), "" (failed) or None (waiting)
-				If returned "" and the browser stays open, software should close that.
+						Get accesstoken (success), "" (failed) or None (waiting)
+						If returned "" and the browser stays open, software should close that.
 
-				Returns:
-						tokenData (dict) or None
+						Returns:
+										tokenData (dict) or None
 		"""
 		if self.result != None:
 			self.shutdown()
@@ -119,16 +119,16 @@ class _WSGIRequestHandler(wsgiref.simple_server.WSGIRequestHandler):
 
 class _RedirectWSGIApp(object):
 	"""
-			WSGI app to handle the authorization redirect.
-			Stores the request URI and displays the given success message.
+					WSGI app to handle the authorization redirect.
+					Stores the request URI and displays the given success message.
 	"""
 
 	def __init__(self, port, hook, failedHook):
 		"""
-				Args:
-						port (int): The port number That receive request
-						hook (callable): The function when got token
-						failedHook (callable): The function when authorization failed (ex: disagreed authorize)
+						Args:
+										port (int): The port number That receive request
+										hook (callable): The function when got token
+										failedHook (callable): The function when authorization failed (ex: disagreed authorize)
 		"""
 
 		self.successMessage = "Authorization successful.  Close this window and go back to your application."
@@ -142,12 +142,12 @@ class _RedirectWSGIApp(object):
 
 	def setMessage(self, lang, success, failed, transfer):
 		"""
-				Set Message that viewd in browser
-				Args:
-						lang (string): The message language code (ex:ja,en,...)
-						success (string): The success message
-						failed (string): The failed message
-						transfer (string): The transfer error message that appear in old or Javascript disabled browser
+						Set Message that viewd in browser
+						Args:
+										lang (string): The message language code (ex:ja,en,...)
+										success (string): The success message
+										failed (string): The failed message
+										transfer (string): The transfer error message that appear in old or Javascript disabled browser
 		"""
 		self.lang = lang
 		self.successMessage = success
@@ -156,12 +156,12 @@ class _RedirectWSGIApp(object):
 
 	def __call__(self, environ, start_response):
 		"""
-				Args:
-						environ (Mapping[str, Any]): The WSGI environment.
-						start_response (Callable[str, list]): The WSGI start_response
-								callable.
-				Returns:
-						Iterable[bytes]: The response body.
+						Args:
+										environ (Mapping[str, Any]): The WSGI environment.
+										start_response (Callable[str, list]): The WSGI start_response
+														callable.
+						Returns:
+										Iterable[bytes]: The response body.
 		"""
 		try:
 			uri = wsgiref.util.request_uri(environ)
