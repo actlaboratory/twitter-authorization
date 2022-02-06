@@ -1,11 +1,15 @@
-import threading
-import wsgiref.util
-from wsgiref.simple_server import make_server
 import http.server
+import wsgiref.util
 import socketserver
 import socket
+import threading
+import time
 import tweepy
+import tweepy450_twitterAuthorization
 import urllib.parse
+
+from wsgiref.simple_server import make_server
+from requests_oauthlib import OAuth2Session
 
 
 def server_bind(self):
@@ -22,29 +26,8 @@ def server_bind(self):
 http.server.HTTPServer.server_bind = server_bind
 
 
-class TwitterAuthorization:
-	def __init__(self, consumerKey, consumerSecret, receivePort):
-		"""
-						Args:
-										consumerKey (string): The consumerKey from Twitter developper portal
-										consumerSecret (string): The consumerSecret from Twitter developper portal
-										receivedPort (string): The port number to receive request
-		"""
-		self.result = None
-
-		self.key = consumerKey
-		self.secret = consumerSecret
-		self.port = receivePort
-		self.localServer = None
-
-		# generate request URL
-		self.tweepy = tweepy.OAuth1UserHandler(self.key, self.secret, "http://localhost:%d" % self.port)
-
-		try:
-			self.url = self.tweepy.get_authorization_url()
-		except (tweepy.TweepyException, tweepy.HTTPException) as e:
-			raise Exception(e)
-
+class TwitterAuthorizationBase:
+	def startServer(self):
 		# start local web server
 		self.wsgi_app = _RedirectWSGIApp(
 			self.port,
@@ -54,6 +37,9 @@ class TwitterAuthorization:
 		self.localServer = wsgiref.simple_server.make_server("localhost", self.port, self.wsgi_app, handler_class=_WSGIRequestHandler)
 		thread = threading.Thread(target=self._localServerThread, args=(self.localServer,))
 		thread.start()
+
+	def _localServerThread(self, server):
+		server.serve_forever()
 
 	def setMessage(self, lang, success, failed, transfer):
 		"""
@@ -87,23 +73,113 @@ class TwitterAuthorization:
 			self.shutdown()
 		return self.result
 
-	def _registToken(self, result):
-		self.result = self.tweepy.get_access_token(result["oauth_verifier"][0])
-		# (result["oauth_token"][0]
-
 	def _failedRequest(self):
 		self.result = ""
-
-	def __del__(self):
-		self.shutdown()
 
 	def shutdown(self):
 		if self.localServer:
 			self.localServer.shutdown()
 			self.localServer = None
 
-	def _localServerThread(self, server):
-		server.serve_forever()
+	def __del__(self):
+		self.shutdown()
+
+
+# v2
+class TwitterAuthorization2(TwitterAuthorizationBase):
+	def __init__(self, clientId, receivePort, scopes):
+		"""
+						Args:
+										clientId (string): The clientId from Twitter developper portal
+										receivedPort (string): The port number to receive request
+										scopes (list): the list of need scopes
+		"""
+		self.result = None
+
+		self.key = clientId
+		self.port = receivePort
+		self.redirect_uri = "http://localhost:%d" % self.port
+		self.scopes = scopes
+		self.localServer = None
+		self.refresh_mergin = 1200
+
+		# generate request URL
+		self.tweepy = tweepy.OAuth2UserHandler(client_id=self.key, redirect_uri=self.redirect_uri, scope=scopes)
+
+		try:
+			self.url = self.tweepy.get_authorization_url()
+		except (tweepy.TweepyException, tweepy.HTTPException) as e:
+			raise Exception(e)
+		self.startServer()
+
+	def _registToken(self, uri):
+		"""
+						Args:
+										url (string): Authorization Response URL
+		"""
+		self.result = self.tweepy.fetch_token(uri)
+		return self.result
+
+	def getClient(self):
+		if not self.result:
+			return None
+
+		# check expires_at
+		if time.time() - self.refresh_mergin > self.result["expires_at"]:
+			self.refresh()
+		return tweepy450_twitterAuthorization.Client(bearer_token=self.result["access_token"])
+
+	def getData(self):
+		return self.result
+
+	def setData(self, data):
+		self.result = data
+
+	def refresh(self):
+		#self.result = self.tweepy.refresh_token(self.result["refresh_token"])
+		session = OAuth2Session(self.key, redirect_uri=self.redirect_uri, scope=self.scopes)
+		self.result = session.refresh_token(
+			"https://api.twitter.com/2/oauth2/token",
+			refresh_token=self.result["refresh_token"],
+			body="client_id="+self.key
+		)
+		return self.result
+
+	def setRefreshMergin(self,mergin):
+		assert type(mergin) == int
+		self.refresh_mergin = mergin
+
+
+# v1
+class TwitterAuthorization(TwitterAuthorizationBase):
+	def __init__(self, consumerKey, consumerSecret, receivePort):
+		"""
+						Args:
+										consumerKey (string): The consumerKey from Twitter developper portal
+										consumerSecret (string): The consumerSecret from Twitter developper portal
+										receivedPort (string): The port number to receive request
+		"""
+		self.result = None
+
+		self.key = consumerKey
+		self.secret = consumerSecret
+		self.port = receivePort
+		self.localServer = None
+
+		# generate request URL
+		self.tweepy = tweepy.OAuth1UserHandler(self.key, self.secret, "http://localhost:%d" % self.port)
+
+		try:
+			self.url = self.tweepy.get_authorization_url()
+		except (tweepy.TweepyException, tweepy.HTTPException) as e:
+			raise Exception(e)
+
+		self.startServer()
+
+	def _registToken(self, uri):
+		query = urllib.parse.urlparse(uri).query
+		result = urllib.parse.parse_qs(query)
+		self.result = self.tweepy.get_access_token(result["oauth_verifier"][0])
 
 
 class _WSGIRequestHandler(wsgiref.simple_server.WSGIRequestHandler):
@@ -134,7 +210,7 @@ class _RedirectWSGIApp(object):
 		self.successMessage = "Authorization successful.  Close this window and go back to your application."
 		self.failedMessage = "Authorization failed.  Please try again."
 		self.transferMessage = "If the screen does not change after a while, open this page in another browser."
-		self.lang = "ja"
+		self.lang = "en"
 
 		self.port = port
 		self.hook = hook
@@ -165,13 +241,13 @@ class _RedirectWSGIApp(object):
 		"""
 		try:
 			uri = wsgiref.util.request_uri(environ)
-			query = urllib.parse.urlparse(uri).query
-			queryDic = urllib.parse.parse_qs(query)
 
 			# 例外発生しなければ正当なリクエスト
 			# サーバ側で処理
+			query = urllib.parse.urlparse(uri).query
 			if query != "":
-				self.hook(queryDic)
+				uri = "https"+uri[4:]
+				self.hook(uri)
 
 			start_response('200 OK', [('Content-type', 'text/html; charset=utf-8')])
 			response = [("<html lang='" + self.lang + "'><head><title>Authorization result</title><meta charset='utf-8'></head><body>" + self.successMessage + "<script><!--\n").encode('utf-8')]
@@ -183,3 +259,4 @@ class _RedirectWSGIApp(object):
 				self.failedHook()
 			start_response('400 Bad Request', [('Content-type', 'text/html; charset=utf-8')])
 			return [("<html lang='" + self.lang + "'><head><title>Authorization result</title><meta charset='utf-8'></head><body>" + self.failedMessage + "</body></html>").encode('utf-8')]
+

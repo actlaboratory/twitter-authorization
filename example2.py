@@ -1,18 +1,18 @@
 import twitterAuthorization
 import webbrowser
 import time
-import tweepy
 
-TWITTER_CONSUMER_KEY = ""
-TWITTER_CONSUMER_SECRET = ""
+TWITTER_CLIENT_ID = "bDVKekZERkMtNXNVMlFoWnNONWY6MTpjaQ"
 LOCAL_PORT = 9339
+NEED_SCOPES = ["tweet.read", "users.read","offline.access"]
 
 if not TWITTER_CLIENT_ID:
 	print ("please set your TWITTER_CLIENT_ID and try again.")
 
-manager = twitterAuthorization.TwitterAuthorization(TWITTER_CONSUMER_KEY,TWITTER_CONSUMER_SECRET,LOCAL_PORT)
+manager = twitterAuthorization.TwitterAuthorization2(TWITTER_CLIENT_ID, LOCAL_PORT, NEED_SCOPES)
 url = manager.getUrl()
 webbrowser.open(url, new=1, autoraise=True)
+token = None
 
 # polling
 try:
@@ -25,7 +25,6 @@ try:
 			print("Authorization failed.  May be user disagreed.")
 			break
 		elif token:
-			print(token)
 			break
 		# when token==None: continue polling
 except KeyboardInterrupt:
@@ -36,9 +35,5 @@ finally:
 	manager.shutdown()
 
 if token:
-	auth = tweepy.OAuthHandler(TWITTER_CONSUMER_KEY, TWITTER_CONSUMER_SECRET)
-	auth.set_access_token(*token)
-	twitterApi = tweepy.API(auth)
+	print(manager.getClient().get_me())
 
-	user = twitterApi.get_user(screen_name="act_laboratory")
-	print(user)

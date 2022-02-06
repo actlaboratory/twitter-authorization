@@ -27,7 +27,7 @@ assert author
 assert author_email
 assert url
 
-long_description = "デスクトップアプリケーションにおけるOAuth1.0を用いたTwitterユーザからの認可取得を最低限のユーザ操作とコーディングで実現することを目的に、localhostで稼働するシンプルなウェブサーバ、レスポンスの検証などの機能を提供するライブラリ"
+long_description = "デスクトップアプリケーションにおけるOAuth1/OAuth2を用いたTwitterユーザからの認可取得を最低限のユーザ操作とコーディングで実現することを目的に、localhostで稼働するシンプルなウェブサーバ、レスポンスの検証などの機能を提供するライブラリ"
 
 
 setup(
@@ -40,12 +40,15 @@ setup(
     author=author,
     author_email=author_email,
 
-    packages=[package_name],
+	# 本モジュール作成時点での最新版tweepy4.5.0には不具合があるため、一時的に代わりのモジュールで対応
+    #packages=[package_name],
+    packages=[package_name, "tweepy450_twitterAuthorization"],
 
     url=url,
 
-    description='Twitter OAuth1.0 Helper for desktop Apps',
+    description='Twitter OAuth1.0/2.0 Helper for desktop Apps',
     long_description=long_description,
 
     install_requires=('tweepy==4.5.0'),
+
 )
