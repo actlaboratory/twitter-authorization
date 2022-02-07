@@ -97,7 +97,7 @@ class Client:
             auth = auth.apply_auth()
         else:
             headers["Authorization"] = f"Bearer {self.bearer_token}"
-		#log.debug(
+        log.debug(
             f"Making API request: {method} {host + route}\n"
             f"Parameters: {params}\n"
             f"Headers: {headers}\n"
