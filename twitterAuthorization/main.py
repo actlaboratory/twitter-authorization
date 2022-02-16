@@ -125,7 +125,7 @@ class TwitterAuthorization2(TwitterAuthorizationBase):
 			return None
 
 		# check expires_at
-		if time.time() - self.refresh_mergin > self.result["expires_at"]:
+		if time.time() + self.refresh_mergin > self.result["expires_at"]:
 			self.refresh()
 		return tweepy450_twitterAuthorization.Client(bearer_token=self.result["access_token"])
 
